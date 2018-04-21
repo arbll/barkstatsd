@@ -46,6 +46,10 @@ func (c *Client) Stop() {
 	close(c.stop)
 }
 
+func (c *Client) Wait() {
+	<-c.stop
+}
+
 func (c *Client) barkLoop() {
 	limiter := ratelimit.NewBucketWithRate(float64(c.TargetPPS), c.TargetPPS)
 	logTicker := time.NewTicker(5 * time.Second)

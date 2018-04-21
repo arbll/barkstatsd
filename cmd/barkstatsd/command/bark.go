@@ -1,7 +1,6 @@
 package command
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 
@@ -10,12 +9,9 @@ import (
 )
 
 var barkCmd = &cobra.Command{
-	Use:   "hugo",
-	Short: "Hugo is a very fast static site generator",
-	Long: `A Fast and Flexible Static Site Generator built with
-                love by spf13 and friends in Go.
-                Complete documentation is available at http://hugo.spf13.com`,
-	RunE: doBark,
+	Use:   "barkstatsd",
+	Short: "A statsd & dogstatsd load testing tool for benchmark purposes.",
+	RunE:  doBark,
 }
 
 var (
@@ -38,11 +34,9 @@ func Bark() {
 }
 
 func doBark(cmd *cobra.Command, args []string) error {
-
 	generator := bark.DogStatsD{}
 	client := bark.NewClient(host, port, pps, &generator)
 	client.Bark()
-	buf := bufio.NewReader(os.Stdin)
-	buf.ReadBytes('\n')
+	client.Wait()
 	return nil
 }
