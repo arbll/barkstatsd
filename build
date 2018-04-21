@@ -1,0 +1,3 @@
+go get -u "github.com/juju/ratelimit"
+go get -u "github.com/spf13/cobra"
+go build -o barkstatsd -- github.com/arbll/barkstatsd/cmd/barkstatsd 

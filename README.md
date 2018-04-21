@@ -1,3 +1,5 @@
 # barkstatsd
 
-A pseudo-random statsd & dogstatsd packet generator for benchmark purposes
+A statsd & dogstatsd load testing tool for benchmark purposes
+
+Requires go >= 1.10
