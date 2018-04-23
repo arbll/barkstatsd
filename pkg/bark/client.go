@@ -1,12 +1,17 @@
 package bark
 
 import (
+	"expvar"
 	"fmt"
 	"net"
 	"strconv"
 	"time"
 
 	"github.com/juju/ratelimit"
+)
+
+var (
+	pps = expvar.NewInt("pps")
 )
 
 type Client struct {
@@ -63,7 +68,7 @@ func (c *Client) barkLoop() {
 		case <-c.stop:
 			return
 		case <-logTicker.C:
-			fmt.Println("PPS:", count/5)
+			pps.Set(int64(count / 5))
 			count = 0
 		default:
 			limiter.Wait(1)
