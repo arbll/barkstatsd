@@ -59,6 +59,7 @@ func (c *Client) barkLoop() {
 	limiter := ratelimit.NewBucketWithRate(float64(c.TargetPPS), c.TargetPPS)
 	logTicker := time.NewTicker(5 * time.Second)
 	count := 0
+	retry := 0
 
 	defer logTicker.Stop()
 	defer c.conn.Close()
@@ -76,7 +77,14 @@ func (c *Client) barkLoop() {
 			count++
 			if err != nil {
 				fmt.Println("Bark worker error: ", err)
-				c.Stop()
+				retry++
+				time.Sleep(5 * time.Second)
+				if retry == 5 {
+					fmt.Println("Could not connect after five retry, exiting.")
+					c.Stop()
+				}
+			} else {
+				retry = 0
 			}
 		}
 	}
