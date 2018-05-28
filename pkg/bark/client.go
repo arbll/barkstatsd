@@ -11,26 +11,33 @@ import (
 )
 
 var (
-	pps = expvar.NewInt("pps")
+	pps    = expvar.NewInt("pps")
+	pcount = expvar.NewInt("pcount")
 )
 
 type Client struct {
-	Host      string
-	Port      int
-	TargetPPS int64
-	Generator Generator
-	stop      chan struct{}
-	conn      net.Conn
+	Host         string
+	Port         int
+	TargetPPS    int64
+	StepPPS      int64
+	IntervalStep time.Duration
+	Duration     time.Duration
+	Generator    Generator
+	stop         chan struct{}
+	conn         net.Conn
 }
 
 // NewClient returns a new client
-func NewClient(host string, port int, targetPPS int64, generator Generator) *Client {
+func NewClient(host string, port int, targetPPS, stepPPS int64, stepInterval time.Duration, duration time.Duration, generator Generator) *Client {
 	return &Client{
-		Host:      host,
-		Port:      port,
-		TargetPPS: targetPPS,
-		Generator: generator,
-		stop:      make(chan struct{}),
+		Host:         host,
+		Port:         port,
+		TargetPPS:    targetPPS,
+		StepPPS:      stepPPS,
+		IntervalStep: stepInterval,
+		Duration:     duration,
+		Generator:    generator,
+		stop:         make(chan struct{}),
 	}
 }
 
@@ -56,25 +63,40 @@ func (c *Client) Wait() {
 }
 
 func (c *Client) barkLoop() {
-	limiter := ratelimit.NewBucketWithRate(float64(c.TargetPPS), c.TargetPPS)
+	targetPPS := c.TargetPPS
+	limiter := ratelimit.NewBucketWithRate(float64(targetPPS), targetPPS)
 	logTicker := time.NewTicker(5 * time.Second)
+	stepTicker := time.NewTicker(c.IntervalStep)
+	duration := c.Duration
+	if duration == 0 {
+		duration = time.Hour * 24 * 365
+	}
+	timerStop := time.NewTimer(duration)
 	count := 0
 	retry := 0
 
+	defer stepTicker.Stop()
 	defer logTicker.Stop()
 	defer c.conn.Close()
+	defer timerStop.Stop()
 
 	for {
 		select {
 		case <-c.stop:
 			return
+		case <-timerStop.C:
+			c.Stop()
 		case <-logTicker.C:
 			pps.Set(int64(count / 5))
 			count = 0
+		case <-stepTicker.C:
+			if c.StepPPS > 0 {
+				targetPPS += c.StepPPS
+				limiter = ratelimit.NewBucketWithRate(float64(targetPPS), targetPPS)
+			}
 		default:
 			limiter.Wait(1)
 			_, err := c.conn.Write(c.Generator.NextDatagram())
-			count++
 			if err != nil {
 				fmt.Println("Bark worker error: ", err)
 				retry++
@@ -84,6 +106,8 @@ func (c *Client) barkLoop() {
 					c.Stop()
 				}
 			} else {
+				count++
+				pcount.Add(1)
 				retry = 0
 			}
 		}
