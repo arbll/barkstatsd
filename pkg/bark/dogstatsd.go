@@ -5,8 +5,10 @@ import (
 )
 
 type DogStatsD struct {
-	Seed int64
-	rand *rand.Rand
+	Seed    int64
+	Packets []string
+	i       int
+	rand    *rand.Rand
 }
 
 // NextDatagram generates the next dogstatsd datagram
@@ -18,5 +20,8 @@ func (g *DogStatsD) NextDatagram() []byte {
 }
 
 func (g *DogStatsD) nextMetric() []byte {
-	return []byte("barkstatsd.metric:1|c")
+	packet := g.Packets[g.i]
+	g.i = (g.i + 1) % len(g.Packets)
+
+	return []byte(packet)
 }

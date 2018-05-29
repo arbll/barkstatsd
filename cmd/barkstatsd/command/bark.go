@@ -1,8 +1,11 @@
 package command
 
 import (
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/arbll/barkstatsd/pkg/bark"
@@ -41,9 +44,29 @@ func Bark() {
 }
 
 func doBark(cmd *cobra.Command, args []string) error {
-	generator := bark.DogStatsD{}
+	if len(args) < 1 {
+		return errors.New("requires path to a packet file")
+	}
+
+	packets, err := readPackets(args[0])
+	if err != nil {
+		return err
+	}
+
+	generator := bark.DogStatsD{
+		Packets: packets,
+	}
 	client := bark.NewClient(host, port, pps, step, interval, duration, &generator)
 	client.Bark()
 	client.Wait()
 	return nil
+}
+
+func readPackets(path string) ([]string, error) {
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return strings.Split(string(b), "\n\n"), nil
 }
